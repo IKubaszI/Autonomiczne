@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sterowanie MonsterTruckiem</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Jersey+10&display=swap');
+    body {
+       margin: 0; padding: 0; background-color: #0c0c2c;font-family: 'Jersey 10', monospace;color: #a0ffa0; min-height: 100vh;height: 100vh;overflow: hidden;user-select: none;position: relative;
+    }
+    #matrix {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; 
+    }
+
+    .main-layout {
+      width: 100vw;max-width: 1720px;margin: 0 auto;height: 100vh;display: flex;flex-direction: row;align-items: center;justify-content: center;gap: 0;position: relative;z-index: 10;
+    }
+    .left-col {
+      position: fixed;top: 80px; left: 48px;z-index: 11;
+    }
+    .center-col {
+    position: fixed; top: 50%; left: 50%;transform: translate(-50%, -50%);display: flex;flex-direction: column;align-items: center;z-index: 10;min-width: 340px;
+    }
+    .right-col {
+      position: fixed;top: 48px;right: 4vw;display: flex; flex-direction: column;align-items: flex-end;gap: 28px;z-index: 20;
+    }
+
+    .card {
+      background: rgba(22,22,44,0.87);box-shadow: 0 6px 32px #12123322; border-radius: 18px;padding: 26px 32px 22px 32px;
+      margin-bottom: 0;display: flex;flex-direction: column;align-items: center; min-width: 320px; max-width: 420px; backdrop-filter: blur(7px);gap: 18px;
+    }
+
+    .main-btn, .server-bar button, #ip-bar button {
+      background: #2b2b5c;color: #fff;font-family: inherit;font-size: 18px;font-weight: 500;border: none;border-radius: 12px;padding: 10px 24px;margin: 0 6px 0 0;box-shadow: 0 2px 8px #0002;cursor: pointer;outline: none;transition: background 0.17s, color 0.13s, box-shadow 0.18s;letter-spacing: 0.5px;display: inline-flex;align-items: center;gap: 8px;
+    }
+    .main-btn:hover, .server-bar button:hover, #ip-bar button:hover {
+      background: #374370;color: #ffe559;box-shadow: 0 4px 20px #232c4e60;
+    }
+    .main-btn:active, .server-bar button:active, #ip-bar button:active {
+      background: #161933;color: #ffe559;
+    }
+    .main-btn:disabled, .server-bar button:disabled, #ip-bar button:disabled {
+      opacity: 0.6;background: #232323;color: #aaa !important;cursor: not-allowed;
+    }
+    .main-btn-icon svg {
+      display: block;filter: drop-shadow(0 0 6px #e7d17c60);
+    }
+    .main-btn.active .main-btn-icon svg {
+      filter: drop-shadow(0 0 9px #ffe559a0);
+    }
+    #ip-bar input, .server-bar input {
+      border-radius: 8px;border: 1px solid #222;padding: 5px 14px;font-size: 17px;font-family: inherit;background: #18193a;color: #fff; margin-right: 2px;margin-left: 0;
+    }
+    #ip-bar label, .server-bar label {
+      margin-right: 6px; color: #fbca38; font-weight: 500;
+    }
+    #ip-bar, .server-bar {
+      display: flex;align-items: center;gap: 10px;justify-content: center;flex-wrap: wrap; width: 100%;
+    }
+    .server-bar .button-row {
+      display: flex;flex-wrap: wrap;gap:10px;margin-top: 8px;width: 100%;    justify-content: flex-end;
+    }
+
+    .speed-bar {
+      margin: 0;display: flex;flex-direction: column;align-items: center;gap: 10px;
+      font-size: 18px;z-index: 20;user-select: none;background: none;border: none;
+      box-shadow: none;position: relative;left: 0;top: 0;min-width: 120px;
+    }
+    .speed-label {
+      color: #fbca38;font-size: 18px;margin-bottom: 2px;letter-spacing: 1px;
+      font-family: 'Jersey 10', monospace;text-shadow: 0 2px 4px #333;
+    }
+    .vertical-slider-wrap {
+      display: flex; flex-direction: column-reverse;align-items: center;justify-content: center;position: relative;height: 210px;width: 70px;
+      background: #2b2b5c;border-radius: 36px;padding: 22px 0 20px 0;
+    }
+    .speed-slider {
+      appearance: none;width: 210px;height: 36px; background: transparent;position: absolute;left: 50%;
+      top: 50%;transform: translate(-50%, -50%) rotate(-90deg);z-index: 2;pointer-events: all;
+    }
+    .speed-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;appearance: none;width: 10px;height: 36px;
+      border-radius: 30px;background: #7fbf8e;cursor: pointer;transition: background 0.2s;
+    }
+    .speed-slider::-webkit-slider-thumb:hover {
+      background: #ffea83;
+    }
+    .speed-slider::-webkit-slider-runnable-track {
+      height: 16px; border-radius: 8px;background: #5c66ff;
+    }
+    .speed-value {
+      font-weight: bold;color: #ffea83; text-align: center; font-size: 22px;
+      margin-top: 20px;text-shadow: 0 1px 3px #232377; letter-spacing: 1px;
+    }
+    .speed-min, .speed-max {
+      color: #bccbf8;font-size: 14px;opacity: 0.6; margin: 0 0 4px 0;
+      font-family: 'Jersey 10', monospace;
+    }
+    .speed-min { position: absolute; left: -12px; bottom: 0;}
+    .speed-max { position: absolute; left: -12px; top: 0;}
+
+    .controller {
+      position: relative; width: 200px; height: 200px; margin-bottom: 20px; z-index: 10;
+      margin-left: auto; margin-right: auto;
+    }
+    .circle { 
+      position: absolute;  width: 60px; height: 60px;background-color: #7f7fbf;  border-radius: 50%; 
+      transition: transform 0.2s ease;  z-index: 13;  top: 50%;  left: 50%; transform: translate(-50%, -50%);
+    }
+    .btn-dir { 
+      position: absolute;  width: 70px;  height: 120px;  background-color: #2b2b5c; 
+      border-radius: 70px;  z-index: 10;  transition: background-color 0.3s;}
+    .btn-dir.active { 
+      background-color: #5c66ff; box-shadow: 0 0 15px #5c66ff; z-index: 12;
+    }
+    .btn-up    { 
+      top: 0; left: 50%; transform: translateX(-50%);
+    }
+    .btn-down  { 
+      bottom: 0; left: 50%; transform: translateX(-50%) rotate(180deg);
+    }
+    .btn-left  { 
+      left: 0;  top: 50%; transform: translateY(-50%) rotate(-90deg);
+    }
+    .btn-right { 
+      right: 0; top: 50%; transform: translateY(-50%) rotate(90deg);
+    }
+    .info-bar { 
+      position: fixed;  bottom: 40px;  left: 50%;  transform: translateX(-50%); font-size: 18px; 
+      color: #ffea83; padding: 7px 20px; border-radius: 15px; z-index: 100; min-width: 320px; text-align: center;}
+
+    .authors { 
+      position: fixed;  bottom: 10px;  left: 50%;  transform: translateX(-50%);  font-size: 16px;  font-family: 'Jersey 10', monospace;  font-weight: medium; color: #ffffff; 
+      opacity: 0.7; z-index: 15;  user-select: none;  pointer-events: none;  text-align: center;}
+
+    .corner-image {
+        position: fixed;bottom: 10px;left: 10px;width: 400px; z-index: 20; opacity: 0.1; 
+    }
+    .corner-image2 {
+        position: fixed; bottom: 10px; right: 10px; width: 410px; z-index: 20; opacity: 0.1; 
+    }
+  </style>
+</head>
+<body>
+  <canvas id="matrix"></canvas>
+  <div class="main-layout">
+    <div class="left-col">
+      <div class="speed-bar">
+        <div class="speed-label">Prędkość</div>
+        <div class="vertical-slider-wrap">
+          <span class="speed-min">0</span>
+          <input type="range" min="0" max="255" value="127" step="1" id="speed-slider" class="speed-slider"
+            oninput="updateSpeedLabel(this.value)" onchange="sendSpeed(this.value)">
+          <span class="speed-max" id="speed-max-label">255</span>
+        </div>
+        <span class="speed-value" id="speed-value">180</span>
+        <span id="autolimit-info" style="color:#ffe559; font-size:15px; display:none;">Autonomiczny: max 50%</span>
+      </div>
+    </div>
+    <div class="center-col">
+        <div class="controller">
+          <div class="circle" id="circle"></div>
+          <div class="btn-dir btn-up"></div>
+          <div class="btn-dir btn-down"></div>
+          <div class="btn-dir btn-left"></div>
+          <div class="btn-dir btn-right"></div>
+        </div>
+        <button class="main-btn" id="mode-btn" onclick="toggleMode()" style="margin:10px auto 0 auto;">
+          <span class="main-btn-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" style="vertical-align:middle">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+              <rect x="7" y="10" width="10" height="4" rx="2" fill="currentColor"/>
+              <circle cx="9" cy="16" r="1" fill="currentColor"/>
+              <circle cx="15" cy="16" r="1" fill="currentColor"/>
+            </svg>
+          </span>
+          <span id="mode-text">Sterowanie wyłączone</span>
+        </button>
+      </div>
+    </div>
+  </div>
+   <div class="right-col">
+      <div class="card">
+        <div id="ip-bar">
+          <label for="esp32-ip">Adres ESP32:</label>
+          <input id="esp32-ip" value="192.168.1.32" />
+          <button class="main-btn" onclick="saveIP()">Zapisz IP</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="server-bar">
+          <label for="server-ip">Adres serwera (PC, tylko IP):</label>
+          <input id="server-ip" value="192.168.1.50" />
+        </div>
+        <div class="button-row">
+          <button class="main-btn" onclick="setServerIP()">Zapisz IP serwera</button>
+          <button class="main-btn" onclick="showServerData()">Pokaż dane z serwera</button>
+          <button class="main-btn" onclick="clearSensorData()" style="margin-top: 12px;">Usuń dane z czujnika</button>
+        </div>
+      </div>
+    </div>
+  <div class="info-bar" id="info-bar">Sterowanie wyłączone</div>
+  <img src="robot.png" alt="Logo" class="corner-image">
+  <img src="robot2.png" alt="Logo" class="corner-image2">
+  <div class="authors">
+    Autorzy: Kateryna Kuzmenko, Jakub Szaraj, Jakub Wiatr
+  </div>
+  <script>
+    let ESP32_IP = document.getElementById('esp32-ip').value.trim();
+    function saveIP() {
+      ESP32_IP = document.getElementById('esp32-ip').value.trim();
+    }
+    function updateSpeedLabel(val) {
+      document.getElementById('speed-value').textContent = val;
+    }
+    function sendSpeed(val) {
+      fetch(`http://${ESP32_IP}/setspeed?val=${val}`)
+        .then(r => r.text())
+        .catch(() => {});
+    }
+    function setServerIP() {
+      const ip = document.getElementById('server-ip').value.trim();
+      fetch(`http://${ESP32_IP}/setserver?ip=${ip}`)
+        .then(r=>r.text())
+        .then(txt=>alert(txt));
+    }
+    function showServerData() {
+      window.open("http://localhost:3100/api/all-data", "_blank");
+    }
+    function clearSensorData() {
+      const ip = document.getElementById('server-ip').value.trim();
+      if(!confirm("Czy na pewno chcesz usunąć wszystkie dane z czujnika na serwerze?")) return;
+      fetch(`http://${ip}:3100/api/clear-data`)
+        .then(r => r.json())
+        .then(data => {
+          alert("Dane z czujnika zostały usunięte!");
+        });
+    }
+    function setSpeedSliderLimit() {
+      const slider = document.getElementById('speed-slider');
+      const maxLabel = document.getElementById('speed-max-label');
+      let maxSpeed = (mode === 2) ? 127 : 255;
+      slider.max = maxSpeed;
+      maxLabel.textContent = maxSpeed;
+      if (parseInt(slider.value) > maxSpeed) {
+        slider.value = maxSpeed;
+        updateSpeedLabel(maxSpeed);
+        sendSpeed(maxSpeed);
+      }
+      document.getElementById('autolimit-info').style.display = (mode === 2) ? 'inline' : 'none';
+    }
+    let mode = 0;
+    let lastManualInfo = "Sterowanie wyłączone";
+    function sendDriveCommand(dir) {
+      if (mode !== 1) return;
+      let info = "";
+      switch(dir) {
+        case "forward": info = "Jazda do przodu"; break;
+        case "backward": info = "Jazda do tyłu"; break;
+        case "left": info = "Skręt w lewo"; break;
+        case "right": info = "Skręt w prawo"; break;
+        case "stop": info = "STOP"; break;
+        default: info = "Sterowanie wyłączone";
+      }
+      setManualStatus(info);
+      fetch(`http://${ESP32_IP}/drive?dir=${dir}`).catch(e => {});
+    }
+    function setMode(newMode) {
+      mode = newMode;
+      if (mode === 0) fetch(`http://${ESP32_IP}/setmode?mode=disabled`);
+      if (mode === 1) fetch(`http://${ESP32_IP}/setmode?mode=remote`);
+      if (mode === 2) fetch(`http://${ESP32_IP}/setmode?mode=auto`);
+      updateAllUI();
+      updateStatusBar();
+    }
+    function updateStatusBar() {
+      const infoBar = document.getElementById("info-bar");
+      if (mode === 0) infoBar.textContent = "Sterowanie wyłączone";
+      else if (mode === 1) infoBar.textContent = lastManualInfo;
+      else if (mode === 2) infoBar.textContent = "Tryb autonomiczny";
+    }
+    function setManualStatus(info) {
+      lastManualInfo = info;
+      updateStatusBar();
+    }
+    function updateAllUI() {
+      const btn = document.getElementById("mode-btn");
+      const txt = document.getElementById("mode-text");
+      const status = document.getElementById("status");
+      if (mode === 0) {
+        btn.classList.remove("active");
+        txt.textContent = "Sterowanie wyłączone";
+        status.style.color = '#ff4c4c';
+      } else if (mode === 1) {
+        btn.classList.add("active");
+        txt.textContent = "Tryb zdalny";
+        status.style.color = '#cae23b';
+      } else {
+        btn.classList.add("active");
+        txt.textContent = "Tryb autonomiczny";
+        status.style.color = '#70ff70';
+      }
+      setSpeedSliderLimit();
+    }
+    function toggleMode() {
+      mode = (mode + 1) % 3;
+      setMode(mode);
+      offsetX = 0; offsetY = 0; direction = null;
+      circle.style.transform = `translate(-50%, -50%)`;
+      setActiveBtn(null);
+    }
+    
+    const circle = document.getElementById("circle");
+    const btnUp = document.querySelector('.btn-up');
+    const btnDown = document.querySelector('.btn-down');
+    const btnLeft = document.querySelector('.btn-left');
+    const btnRight = document.querySelector('.btn-right');
+    let offsetX = 0, offsetY = 0, direction = null;
+    function setActiveBtn(dir) {
+      btnUp.classList.toggle('active', dir === 'up');
+      btnDown.classList.toggle('active', dir === 'down');
+      btnLeft.classList.toggle('active', dir === 'left');
+      btnRight.classList.toggle('active', dir === 'right');
+    }
+    document.addEventListener("keydown", (event) => {
+      if (mode !== 1) return;
+      const key = event.key.toLowerCase();
+      if (direction === null) {
+        if (key === 'arrowup' || key === 'w') { offsetY = -60; direction = 'up'; sendDriveCommand('forward'); }
+        else if (key === 'arrowdown' || key === 's') { offsetY = 60; direction = 'down'; sendDriveCommand('backward'); }
+        else if (key === 'arrowleft' || key === 'a') { offsetX = -60; direction = 'left'; sendDriveCommand('left'); }
+        else if (key === 'arrowright' || key === 'd') { offsetX = 60; direction = 'right'; sendDriveCommand('right'); }
+        circle.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+        setActiveBtn(direction);
+      }
+    });
+    document.addEventListener("keyup", (event) => {
+      if (mode !== 1) return;
+      const key = event.key.toLowerCase();
+      if (
+        (key === 'arrowup' || key === 'w') && direction === 'up' ||
+        (key === 'arrowdown' || key === 's') && direction === 'down' ||
+        (key === 'arrowleft' || key === 'a') && direction === 'left' ||
+        (key === 'arrowright' || key === 'd') && direction === 'right'
+      ) {
+        sendDriveCommand('stop');
+        direction = null; offsetX = 0; offsetY = 0;
+        circle.style.transform = `translate(-50%, -50%)`;
+        setActiveBtn(null);
+      }
+    });
+    const canvas = document.getElementById('matrix');
+    const ctx = canvas.getContext('2d');
+    let width = window.innerWidth, height = window.innerHeight;
+    canvas.width = width; canvas.height = height;
+    const letters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@#$%^&*()*&^%'.split('');
+    const fontSize = 16, columns = Math.floor(width / fontSize);
+    const drops = Array(columns).fill(1);
+    function draw() {
+      ctx.fillStyle = 'rgba(12, 12, 44, 0.1)';
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = '#0f0';
+      ctx.font = fontSize + 'px monospace';
+      for (let i = 0; i < drops.length; i++) {
+        const text = letters[Math.floor(Math.random() * letters.length)];
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+      }
+    }
+    setInterval(draw, 50);
+    window.addEventListener('resize', () => {
+      width = window.innerWidth; height = window.innerHeight;
+      canvas.width = width; canvas.height = height;
+    });
+    document.addEventListener('DOMContentLoaded', () => {
+      updateSpeedLabel(document.getElementById('speed-slider').value);
+      setMode(0);
+    });
+    updateAllUI();
+    
+  </script>
+  <img src="robot.png" alt="Logo" class="corner-image">
+  <img src="robot2.png" alt="Logo" class="corner-image2">
+  <div class="authors">
+    Autorzy: Kateryna Kuzmenko, Jakub Szaraj, Jakub Wiatr
+  </div>
+</body>
+</html>

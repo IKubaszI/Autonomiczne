@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sterowanie Robotem (Mobilne)</title>
+  <style>
+    :root {
+      --accent: #4cc3ff;
+      --accent-dark: #28a9df;
+      --bg: #0c0c2c;
+      --txt: #a0ffa0;
+      --warn: #ffe559;
+    }
+    * { box-sizing: border-box; }
+    body {
+      background-color: var(--bg);
+      font-family: 'Arial', sans-serif;
+      color: var(--txt);
+      text-align: center;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 24px;
+    }
+    .btn {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      font-size: 20px;
+      padding: 16px 32px;
+      margin: 10px;
+      border: none;
+      border-radius: 16px;
+      box-shadow: 0 0 12px #4cc3ff80;
+      cursor: pointer;
+      width: 70%;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn:active {
+      background: var(--accent-dark);
+      transform: scale(0.97);
+    }
+    /* --- SPEED SLIDER --- */
+    .speed-wrapper {
+      margin: 26px auto 10px auto;
+      width: 90%;
+      max-width: 400px;
+    }
+    .speed-label {
+      font-size: 18px;
+      margin-bottom: 6px;
+      color: var(--warn);
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 16px;
+      background: linear-gradient(90deg, var(--accent) 10%, #29298e 100%);
+      border-radius: 8px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 65% 25%, var(--warn) 70%, #fffbe790 100%);
+      border: 3px solid #232377;
+      box-shadow: 0 0 9px #ffe559a0;
+      cursor: pointer;
+      transition: box-shadow 0.2s;
+    }
+    input[type="range"]::-webkit-slider-thumb:active {
+      box-shadow: 0 0 16px #fffbe7;
+    }
+    #status {
+      margin-top: 22px;
+      font-size: 18px;
+      color: var(--warn);
+      min-height: 22px;
+    }
+    /* IP quick edit */
+    .ip-edit {
+      margin-bottom: 20px;
+    }
+    .ip-edit input {
+      width: 60%;
+      padding: 6px 10px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #111;
+    }
+    .ip-edit button {
+      padding: 6px 14px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      margin-left: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .ip-edit button:active { background: var(--accent-dark); }
+    /* Tryb przycisk */
+    .mode-btn {
+      display: block;
+      margin: 18px auto 18px auto;
+      padding: 12px 38px;
+      font-size: 20px;
+      border-radius: 16px;
+      background: var(--warn);
+      color: #222;
+      font-weight: bold;
+      border: none;
+      box-shadow: 0 0 12px #ffe55980;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, transform 0.1s;
+    }
+    .mode-btn.active {
+      background: #29298e;
+      color: #ffe559;
+    }
+    .mode-btn:active {
+      transform: scale(0.97);
+      background: #ffe559cc;
+    }
+    .max-label {
+      color: #ffe559;
+      font-size: 14px;
+      margin-left: 8px;
+      font-weight: bold;
+      vertical-align: middle;
+    }
+    #autolimit-info {
+      color: #ffe559;
+      font-size: 15px;
+      display: none;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Sterowanie Mobilne</h1>
+
+  <div class="ip-edit">
+    <input id="esp32-ip" value="192.168.0.66" placeholder="Adres ESP32" />
+    <button onclick="saveIP()">Zapisz IP</button>
+  </div>
+
+  <!-- PRZYCISK TRYBU -->
+  <button class="mode-btn" id="modeBtn" onclick="toggleMode()">Tryb: Wyłączone</button>
+
+  <div>
+    <button class="btn" onclick="send('forward')">Do przodu</button><br>
+    <button class="btn" onclick="send('left')">Lewo</button>
+    <button class="btn" onclick="send('stop')">Stop</button>
+    <button class="btn" onclick="send('right')">Prawo</button><br>
+    <button class="btn" onclick="send('backward')">Do tyłu</button>
+  </div>
+
+  <!-- SPEED CONTROL -->
+  <div class="speed-wrapper">
+    <div class="speed-label">
+      Prędkość: <span id="speed-value">180</span>
+      <span class="max-label" id="max-label"></span>
+    </div>
+    <input type="range" id="speed-slider" min="0" max="255" value="180" step="1"
+           oninput="updateSpeedLabel(this.value)" onchange="sendSpeed(this.value)">
+    <div id="autolimit-info">Autonomiczny: max 50%</div>
+  </div>
+
+  <div id="status">Sterowanie gotowe</div>
+
+  <script>
+    let ESP32_IP = document.getElementById('esp32-ip').value.trim();
+    let speed = parseInt(document.getElementById('speed-slider').value);
+
+    // tryby: 0 - wyłączone, 1 - zdalny, 2 - autonomiczny
+    let mode = 0;
+    const modeBtn = document.getElementById('modeBtn');
+    const modeNames = ["Wyłączone", "Zdalny", "Autonomiczny"];
+    const slider = document.getElementById('speed-slider');
+    const maxLabel = document.getElementById('max-label');
+    const autoInfo = document.getElementById('autolimit-info');
+
+    function saveIP() {
+      ESP32_IP = document.getElementById('esp32-ip').value.trim();
+      localStorage.setItem('esp32_ip', ESP32_IP);
+    }
+    // Restore saved IP if available
+    (function restoreIPs() {
+      const saved = localStorage.getItem('esp32_ip');
+      if (saved) {
+        ESP32_IP = saved;
+        document.getElementById('esp32-ip').value = saved;
+      }
+    })();
+
+    function send(cmd) {
+      fetch(`http://${ESP32_IP}/drive?dir=${cmd}`)
+        .then(r => r.text())
+        .then(txt => setStatus(txt))
+        .catch(() => setStatus('Błąd połączenia'));
+    }
+
+    function updateSpeedLabel(val) {
+      speed = parseInt(val);
+      document.getElementById('speed-value').textContent = val;
+    }
+    function sendSpeed(val) {
+      speed = parseInt(val);
+      fetch(`http://${ESP32_IP}/setspeed?val=${val}`)
+        .then(r => r.text())
+        .then(txt => setStatus(txt || `Prędkość ustawiona: ${val}`))
+        .catch(() => setStatus('Błąd połączenia przy zmianie prędkości'));
+    }
+
+    function setStatus(txt) {
+      document.getElementById('status').textContent = txt;
+    }
+
+    // -------- BLOKADY I ODBLOKOWANIA SUWAKA --------
+    function applySpeedLimit() {
+      if (mode === 2) { // autonomiczny
+        slider.max = 127;
+        maxLabel.textContent = "/ 127";
+        autoInfo.style.display = "block";
+        if (speed > 127) {
+          slider.value = 127;
+          updateSpeedLabel(127);
+          sendSpeed(127);
+        }
+      } else { // zdalny lub wyłączony
+        slider.max = 255;
+        maxLabel.textContent = "/ 255";
+        autoInfo.style.display = "none";
+        // jeśli był ograniczony i speed < 255, slider zostaje jak był
+      }
+    }
+
+    // -------- PRZYCISK TRYBU --------
+    function toggleMode() {
+      mode = (mode + 1) % 3;
+      modeBtn.textContent = "Tryb: " + modeNames[mode];
+      modeBtn.classList.toggle("active", mode !== 0);
+      let modeStr = "disabled";
+      if (mode === 1) modeStr = "remote";
+      if (mode === 2) modeStr = "auto";
+      fetch(`http://${ESP32_IP}/setmode?mode=${modeStr}`)
+        .then(r => r.text())
+        .then(txt => {
+          setStatus(txt);
+          applySpeedLimit();
+          // Po zmianie trybu od razu wysyłamy aktualną (ograniczoną) prędkość
+          sendSpeed(slider.value);
+        })
+        .catch(() => setStatus('Błąd połączenia przy zmianie trybu'));
+    }
+
+    // Po załadowaniu strony ustaw suwaki i wyślij prędkość do ESP32
+    document.addEventListener('DOMContentLoaded', () => {
+      const val = document.getElementById('speed-slider').value;
+      updateSpeedLabel(val);
+      modeBtn.textContent = "Tryb: " + modeNames[mode];
+      modeBtn.classList.toggle("active", mode !== 0);
+      applySpeedLimit();
+      sendSpeed(val);
+    });
+  </script>
+</body>
+</html>
